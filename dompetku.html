@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dompetku — Catatan Keuangan Harian</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --text: #e8eaf2;
+    --muted: #7b82a0;
+    --green: #22c55e;
+    --green-dim: #15803d22;
+    --red: #f87171;
+    --red-dim: #dc262622;
+    --blue: #60a5fa;
+    --blue-dim: #2563eb22;
+    --amber: #fbbf24;
+    --amber-dim: #d9770622;
+    --accent: #818cf8;
+    --accent-dim: #4f46e522;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,17,23,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand { font-size: 1.1rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .brand-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab {
+    padding: 6px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+    cursor: pointer; color: var(--muted); border: none; background: transparent; transition: all .2s;
+  }
+  .nav-tab.active, .nav-tab:hover { background: var(--surface2); color: var(--text); }
+  .nav-tab.active { color: var(--accent); }
+
+  /* LAYOUT */
+  main { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: .75rem;
+  }
+
+  /* SUMMARY GRID */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.25rem;
+  }
+  .stat-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-family: 'DM Mono', monospace; font-size: 1.5rem; font-weight: 500; }
+  .stat-value.income { color: var(--green); }
+  .stat-value.expense { color: var(--red); }
+  .stat-value.balance { color: var(--blue); }
+  .stat-value.saving { color: var(--amber); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1/-1; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+  input, select, textarea {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px;
+    color: var(--text); font-family: inherit; font-size: 14px;
+    outline: none; transition: border .2s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  .type-toggle { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .type-btn {
+    flex: 1; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s;
+    background: var(--surface2); color: var(--muted);
+  }
+  .type-btn.pemasukan.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .type-btn.pengeluaran.active { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+
+  .btn-submit {
+    width: 100%; margin-top: 1rem; padding: 12px;
+    background: var(--accent); color: white; border: none;
+    border-radius: var(--radius-sm); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all .2s; font-family: inherit;
+  }
+  .btn-submit:hover { opacity: .85; transform: translateY(-1px); }
+  .btn-submit:active { transform: translateY(0); }
+
+  /* TRANSACTION LIST */
+  .tx-list { display: flex; flex-direction: column; gap: 8px; }
+  .tx-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: .75rem 1rem;
+    transition: border-color .2s;
+  }
+  .tx-item:hover { border-color: var(--accent); }
+  .tx-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .tx-icon.in { background: var(--green-dim); }
+  .tx-icon.out { background: var(--red-dim); }
+  .tx-info { flex: 1; min-width: 0; }
+  .tx-desc { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tx-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; background: var(--surface2); color: var(--muted);
+    white-space: nowrap;
+  }
+  .tx-amount { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; text-align: right; }
+  .tx-amount.in { color: var(--green); }
+  .tx-amount.out { color: var(--red); }
+  .tx-delete {
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; padding: 4px; border-radius: 6px; font-size: 16px;
+    transition: all .2s; display: flex; align-items: center;
+  }
+  .tx-delete:hover { color: var(--red); background: var(--red-dim); }
+
+  /* PROGRESS BAR */
+  .progress-wrap { margin-bottom: 1rem; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+  .progress-label .pl { font-weight: 600; color: var(--text); }
+  .progress-label .pr { font-family: 'DM Mono', monospace; color: var(--muted); }
+  .progress-bar { height: 8px; background: var(--surface2); border-radius: 20px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 20px; transition: width .6s ease; }
+  .progress-fill.safe { background: var(--green); }
+  .progress-fill.warn { background: var(--amber); }
+  .progress-fill.over { background: var(--red); }
+
+  /* LAPORAN */
+  .section-title { font-size: 16px; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.green { background: var(--green); }
+  .dot.red { background: var(--red); }
+  .dot.blue { background: var(--blue); }
+
+  /* FILTER */
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--surface); color: var(--muted); transition: all .2s;
+  }
+  .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+  .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+  .empty p { font-size: 14px; }
+
+  /* NOTIF PANEL */
+  .notif-wrap { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .notif {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: .75rem 1rem;
+    font-size: 13px; min-width: 240px; max-width: 300px;
+    display: flex; align-items: center; gap: 10px;
+    animation: slideIn .3s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+  .notif.success { border-left: 3px solid var(--green); }
+  .notif.warning { border-left: 3px solid var(--amber); }
+  .notif.error { border-left: 3px solid var(--red); }
+
+  /* HUTANG TRACKER */
+  .hutang-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 1rem;
+    display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start;
+  }
+  .hutang-name { font-weight: 600; font-size: 14px; }
+  .hutang-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .hutang-badge {
+    font-size: 11px; font-weight: 700; padding: 4px 10px;
+    border-radius: 20px; background: var(--red-dim); color: var(--red);
+  }
+  .hutang-badge.lunas { background: var(--green-dim); color: var(--green); }
+
+  /* PANDUAN */
+  .guide-step {
+    display: flex; gap: 1rem; align-items: flex-start;
+    padding: 1rem; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    margin-bottom: 10px;
+  }
+  .step-num {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--accent-dim);
+    color: var(--accent); font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-content .step-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .step-content p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .step-content code {
+    background: var(--surface2); padding: 2px 6px; border-radius: 4px;
+    font-family: 'DM Mono', monospace; font-size: 12px; color: var(--blue);
+  }
+
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px;
+    border-radius: 20px; background: var(--accent-dim); color: var(--accent);
+  }
+
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    .nav-tabs { gap: 2px; }
+    .nav-tab { padding: 5px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <div class="brand-icon">💰</div>
+    Dompetku
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('input')">+ Catat</button>
+    <button class="nav-tab" onclick="showPage('laporan')">Laporan</button>
+    <button class="nav-tab" onclick="showPage('hutang')">Hutang</button>
+    <button class="nav-tab" onclick="showPage('panduan')">Panduan</button>
+  </div>
+</nav>
+
+<main>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div class="page active" id="page-dashboard">
+  <div style="margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between;">
+    <div>
+      <div style="font-size:20px;font-weight:700;" id="greeting">Halo!</div>
+      <div style="font-size:13px;color:var(--muted);" id="today-date"></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);text-align:right;">
+      <div id="bulan-label"></div>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Pemasukan</div>
+      <div class="stat-value income" id="total-masuk">Rp 0</div>
+      <div class="stat-sub" id="sub-masuk">0 transaksi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Pengeluaran</div>
+      <div class="stat-value expense" id="total-keluar">Rp 0</div>
+      <div class="stat-sub" id="sub-keluar">0 transaksi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Saldo Bersih</div>
+      <div class="stat-value balance" id="total-saldo">Rp 0</div>
+      <div class="stat-sub" id="sub-saldo">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Target Tabungan 20%</div>
+      <div class="stat-value saving" id="target-saving">Rp 0</div>
+      <div class="stat-sub" id="sub-saving">dari total pemasukan</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card-title">Distribusi 50/30/20</div>
+    <div id="progress-container"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Transaksi Hari Ini</div>
+    <div class="tx-list" id="tx-today"></div>
+  </div>
+</div>
+
+<!-- ═══ INPUT ═══ -->
+<div class="page" id="page-input">
+  <div style="font-size:20px;font-weight:700;margin-bottom:1.5rem;">Catat Transaksi</div>
+
+  <div class="type-toggle">
+    <button class="type-btn pemasukan active" id="btn-masuk" onclick="setType('pemasukan')">+ Pemasukan</button>
+    <button class="type-btn pengeluaran" id="btn-keluar" onclick="setType('pengeluaran')">− Pengeluaran</button>
+  </div>
+
+  <div class="card">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>JUMLAH (Rp)</label>
+        <input type="number" id="inp-jumlah" placeholder="500000" min="0">
+      </div>
+      <div class="form-group">
+        <label>TANGGAL</label>
+        <input type="date" id="inp-tanggal">
+      </div>
+      <div class="form-group">
+        <label>KATEGORI</label>
+        <select id="inp-kategori">
+          <option value="">Pilih kategori...</option>
+          <option value="Gaji">Gaji</option>
+          <option value="Freelance">Freelance</option>
+          <option value="Bonus">Bonus</option>
+          <option value="Investasi">Investasi</option>
+          <option value="Lainnya-Masuk">Lainnya (Masuk)</option>
+          <option disabled>──────────</option>
+          <option value="Kebutuhan">Kebutuhan Pokok</option>
+          <option value="Keinginan">Keinginan</option>
+          <option value="Tabungan">Tabungan</option>
+          <option value="Hutang">Cicilan/Hutang</option>
+          <option value="Kesehatan">Kesehatan</option>
+          <option value="Transportasi">Transportasi</option>
+          <option value="Makanan">Makanan & Minuman</option>
+          <option value="Hiburan">Hiburan</option>
+          <option value="Lainnya">Lainnya</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>METODE BAYAR</label>
+        <select id="inp-metode">
+          <option value="Cash">Cash</option>
+          <option value="Transfer">Transfer Bank</option>
+          <option value="Dompet Digital">Dompet Digital (GoPay/OVO/Dana)</option>
+          <option value="Kartu Debit">Kartu Debit</option>
+          <option value="Kartu Kredit">Kartu Kredit</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>KETERANGAN</label>
+        <input type="text" id="inp-ket" placeholder="Contoh: Belanja Indomaret, Gaji bulan Mei...">
+      </div>
+    </div>
+    <button class="btn-submit" onclick="simpanTransaksi()">Simpan Transaksi</button>
+  </div>
+</div>
+
+<!-- ═══ LAPORAN ═══ -->
+<div class="page" id="page-laporan">
+  <div style="font-size:20px;font-weight:700;margin-bottom:1.5rem;">Laporan Transaksi</div>
+
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="setFilter('semua', this)">Semua</button>
+    <button class="filter-btn" onclick="setFilter('pemasukan', this)">Pemasukan</button>
+    <button class="filter-btn" onclick="setFilter('pengeluaran', this)">Pengeluaran</button>
+    <button class="filter-btn" onclick="setFilter('hari-ini', this)">Hari Ini</button>
+    <button class="filter-btn" onclick="setFilter('minggu-ini', this)">Minggu Ini</button>
+  </div>
+
+  <div class="tx-list" id="tx-all"></div>
+</div>
+
+<!-- ═══ HUTANG ═══ -->
+<div class="page" id="page-hutang">
+  <div style="font-size:20px;font-weight:700;margin-bottom:1.5rem;">Tracker Hutang</div>
+
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div class="card-title">Tambah Hutang Baru</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>NAMA HUTANG</label>
+        <input type="text" id="h-nama" placeholder="KPR, Kartu Kredit, dll">
+      </div>
+      <div class="form-group">
+        <label>TOTAL HUTANG (Rp)</label>
+        <input type="number" id="h-total" placeholder="5000000">
+      </div>
+      <div class="form-group">
+        <label>CICILAN/BULAN (Rp)</label>
+        <input type="number" id="h-cicilan" placeholder="500000">
+      </div>
+      <div class="form-group">
+        <label>BUNGA/TAHUN (%)</label>
+        <input type="number" id="h-bunga" placeholder="12" step="0.1">
+      </div>
+    </div>
+    <button class="btn-submit" onclick="tambahHutang()">Tambah Hutang</button>
+  </div>
+
+  <div style="font-size:13px;color:var(--muted);margin-bottom:1rem;padding:.75rem 1rem;background:var(--red-dim);border-radius:var(--radius-sm);border:1px solid var(--red);">
+    💡 <strong style="color:var(--red);">Metode Avalanche:</strong> Bayar hutang berbunga tertinggi DULU — ini menghemat uang paling banyak.
+  </div>
+
+  <div id="hutang-list" class="tx-list"></div>
+</div>
+
+<!-- ═══ PANDUAN DEPLOY ═══ -->
+<div class="page" id="page-panduan">
+  <div style="font-size:20px;font-weight:700;margin-bottom:.5rem;">Panduan Deploy ke Internet</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:1.5rem;">Ikuti langkah berikut agar web ini bisa diakses dari HP & laptop manapun, gratis.</div>
+
+  <div style="margin-bottom:1.5rem;">
+    <div class="section-title"><span class="dot blue"></span> Step 1 — Buat akun GitHub (gratis)</div>
+    <div class="guide-step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Daftar di GitHub</div>
+        <p>Buka <code>github.com</code> → klik "Sign up" → isi email & password → verifikasi email.</p>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Buat repository baru</div>
+        <p>Klik tombol "+" di pojok kanan atas → "New repository" → beri nama <code>dompetku</code> → klik "Create repository".</p>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Upload file index.html</div>
+        <p>Di halaman repository, klik "uploading an existing file" → drag & drop file <code>index.html</code> ini → klik "Commit changes".</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1.5rem;">
+    <div class="section-title"><span class="dot green"></span> Step 2 — Deploy ke Vercel (gratis selamanya)</div>
+    <div class="guide-step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Daftar di Vercel</div>
+        <p>Buka <code>vercel.com</code> → klik "Sign Up" → pilih "Continue with GitHub" → izinkan akses.</p>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <div class="step-title">Import project</div>
+        <p>Di dashboard Vercel, klik "Add New → Project" → pilih repository <code>dompetku</code> → klik "Deploy". Tunggu 1-2 menit.</p>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">6</div>
+      <div class="step-content">
+        <div class="step-title">Web kamu sudah online!</div>
+        <p>Vercel akan memberikan link seperti <code>dompetku.vercel.app</code> — buka dari HP manapun, kapanpun. Gratis!</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1.5rem;">
+    <div class="section-title"><span class="dot" style="background:var(--amber)"></span> Step 3 — Tambah database Supabase (opsional, data tidak hilang)</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:1rem;">
+      Saat ini data tersimpan di browser (localStorage). Jika mau data tersimpan permanen & bisa diakses dari HP berbeda, tambahkan Supabase.
+    </div>
+    <div class="guide-step">
+      <div class="step-num">7</div>
+      <div class="step-content">
+        <div class="step-title">Daftar Supabase</div>
+        <p>Buka <code>supabase.com</code> → "Start your project" → daftar dengan GitHub → buat project baru → pilih region "Southeast Asia".</p>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">8</div>
+      <div class="step-content">
+        <div class="step-title">Salin API Key</div>
+        <p>Di Supabase: Settings → API → salin <code>Project URL</code> dan <code>anon public key</code>. Kirimkan ke aku, nanti aku buatkan versi dengan database penuh.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:1rem 1.25rem;background:var(--accent-dim);border-radius:var(--radius);border:1px solid var(--accent);font-size:13px;">
+    <strong style="color:var(--accent);">📱 Tips:</strong> <span style="color:var(--muted);">Setelah deploy, buka web di HP → tekan menu browser → "Add to Home Screen" → web ini akan terasa seperti aplikasi HP!</span>
+  </div>
+</div>
+
+</main>
+
+<div class="notif-wrap" id="notif-wrap"></div>
+
+<script>
+const STORAGE_KEY = 'dompetku_v1';
+const HUTANG_KEY = 'dompetku_hutang_v1';
+let currentType = 'pemasukan';
+let currentFilter = 'semua';
+
+function getData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+function getHutang() {
+  try { return JSON.parse(localStorage.getItem(HUTANG_KEY) || '[]'); } catch { return []; }
+}
+function saveHutang(d) { localStorage.setItem(HUTANG_KEY, JSON.stringify(d)); }
+
+function formatRp(n) {
+  return 'Rp ' + Math.abs(n).toLocaleString('id-ID');
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(id === 'input' ? 'catat' : id === 'panduan' ? 'panduan' : id))
+      t.classList.add('active');
+  });
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'laporan') renderLaporan();
+  if (id === 'hutang') renderHutang();
+}
+
+function setType(t) {
+  currentType = t;
+  document.getElementById('btn-masuk').classList.toggle('active', t === 'pemasukan');
+  document.getElementById('btn-keluar').classList.toggle('active', t === 'pengeluaran');
+}
+
+function simpanTransaksi() {
+  const jumlah = parseFloat(document.getElementById('inp-jumlah').value);
+  const tanggal = document.getElementById('inp-tanggal').value;
+  const kategori = document.getElementById('inp-kategori').value;
+  const metode = document.getElementById('inp-metode').value;
+  const ket = document.getElementById('inp-ket').value.trim();
+
+  if (!jumlah || jumlah <= 0) { showNotif('Masukkan jumlah yang valid!', 'error'); return; }
+  if (!tanggal) { showNotif('Pilih tanggal!', 'error'); return; }
+  if (!kategori) { showNotif('Pilih kategori!', 'error'); return; }
+  if (!ket) { showNotif('Isi keterangan!', 'error'); return; }
+
+  const data = getData();
+  data.push({ id: Date.now(), type: currentType, jumlah, tanggal, kategori, metode, ket });
+  saveData(data);
+
+  document.getElementById('inp-jumlah').value = '';
+  document.getElementById('inp-ket').value = '';
+  document.getElementById('inp-kategori').value = '';
+
+  showNotif(currentType === 'pemasukan' ? '✓ Pemasukan tersimpan!' : '✓ Pengeluaran tersimpan!', 'success');
+  checkBudgetAlert(data);
+}
+
+function checkBudgetAlert(data) {
+  const now = new Date();
+  const bulan = now.toISOString().slice(0, 7);
+  const bulanData = data.filter(d => d.tanggal.startsWith(bulan));
+  const masuk = bulanData.filter(d => d.type === 'pemasukan').reduce((s, d) => s + d.jumlah, 0);
+  const keluar = bulanData.filter(d => d.type === 'pengeluaran').reduce((s, d) => s + d.jumlah, 0);
+  if (masuk > 0 && keluar / masuk > 0.8) {
+    setTimeout(() => showNotif('⚠️ Pengeluaran sudah >80% pemasukan bulan ini!', 'warning'), 600);
+  }
+}
+
+function renderDashboard() {
+  const now = new Date();
+  const hours = now.getHours();
+  const greet = hours < 12 ? 'Selamat Pagi!' : hours < 17 ? 'Selamat Siang!' : 'Selamat Malam!';
+  document.getElementById('greeting').textContent = greet;
+  document.getElementById('today-date').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('bulan-label').textContent = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+  const data = getData();
+  const bulan = now.toISOString().slice(0, 7);
+  const bulanData = data.filter(d => d.tanggal.startsWith(bulan));
+  const masuk = bulanData.filter(d => d.type === 'pemasukan').reduce((s, d) => s + d.jumlah, 0);
+  const keluar = bulanData.filter(d => d.type === 'pengeluaran').reduce((s, d) => s + d.jumlah, 0);
+  const saldo = masuk - keluar;
+
+  document.getElementById('total-masuk').textContent = formatRp(masuk);
+  document.getElementById('total-keluar').textContent = formatRp(keluar);
+  document.getElementById('total-saldo').textContent = (saldo < 0 ? '-' : '') + formatRp(saldo);
+  document.getElementById('total-saldo').style.color = saldo >= 0 ? 'var(--blue)' : 'var(--red)';
+  document.getElementById('target-saving').textContent = formatRp(masuk * 0.2);
+  document.getElementById('sub-masuk').textContent = bulanData.filter(d => d.type === 'pemasukan').length + ' transaksi';
+  document.getElementById('sub-keluar').textContent = bulanData.filter(d => d.type === 'pengeluaran').length + ' transaksi';
+  document.getElementById('sub-saldo').textContent = saldo >= 0 ? 'Surplus bulan ini' : 'Defisit bulan ini';
+
+  // Progress 50/30/20
+  const cats = { Kebutuhan: 0, Keinginan: 0, Tabungan: 0 };
+  bulanData.filter(d => d.type === 'pengeluaran').forEach(d => {
+    if (d.kategori === 'Kebutuhan' || d.kategori === 'Makanan' || d.kategori === 'Transportasi' || d.kategori === 'Kesehatan') cats.Kebutuhan += d.jumlah;
+    else if (d.kategori === 'Keinginan' || d.kategori === 'Hiburan') cats.Keinginan += d.jumlah;
+    else if (d.kategori === 'Tabungan') cats.Tabungan += d.jumlah;
+  });
+
+  const targets = { Kebutuhan: masuk * 0.5, Keinginan: masuk * 0.3, Tabungan: masuk * 0.2 };
+  const labels = { Kebutuhan: '50% Kebutuhan Pokok', Keinginan: '30% Keinginan', Tabungan: '20% Tabungan' };
+  let html = '';
+  for (const k of ['Kebutuhan', 'Keinginan', 'Tabungan']) {
+    const pct = targets[k] > 0 ? Math.min((cats[k] / targets[k]) * 100, 100) : 0;
+    const cls = pct > 90 ? 'over' : pct > 70 ? 'warn' : 'safe';
+    html += `<div class="progress-wrap">
+      <div class="progress-label"><span class="pl">${labels[k]}</span><span class="pr">${formatRp(cats[k])} / ${formatRp(targets[k])}</span></div>
+      <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+  }
+  document.getElementById('progress-container').innerHTML = html;
+
+  // Today
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayTx = data.filter(d => d.tanggal === todayStr).reverse();
+  const todayEl = document.getElementById('tx-today');
+  if (todayTx.length === 0) {
+    todayEl.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>Belum ada transaksi hari ini</p></div>';
+  } else {
+    todayEl.innerHTML = todayTx.slice(0, 5).map(t => txItemHTML(t)).join('');
+  }
+}
+
+function txItemHTML(t, showDelete = true) {
+  const isIn = t.type === 'pemasukan';
+  const icon = isIn ? '↑' : '↓';
+  return `<div class="tx-item">
+    <div class="tx-icon ${isIn ? 'in' : 'out'}">${icon}</div>
+    <div class="tx-info">
+      <div class="tx-desc">${t.ket}</div>
+      <div class="tx-meta">${t.tanggal} · ${t.metode}</div>
+    </div>
+    <span class="tx-badge">${t.kategori}</span>
+    <div class="tx-amount ${isIn ? 'in' : 'out'}">${isIn ? '+' : '-'}${formatRp(t.jumlah)}</div>
+    ${showDelete ? `<button class="tx-delete" onclick="hapusTx(${t.id})" title="Hapus">×</button>` : ''}
+  </div>`;
+}
+
+function hapusTx(id) {
+  const data = getData().filter(d => d.id !== id);
+  saveData(data);
+  renderDashboard();
+  renderLaporan();
+  showNotif('Transaksi dihapus', 'warning');
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderLaporan();
+}
+
+function renderLaporan() {
+  let data = getData();
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const weekAgo = new Date(now - 7 * 86400000).toISOString().slice(0, 10);
+
+  if (currentFilter === 'pemasukan') data = data.filter(d => d.type === 'pemasukan');
+  else if (currentFilter === 'pengeluaran') data = data.filter(d => d.type === 'pengeluaran');
+  else if (currentFilter === 'hari-ini') data = data.filter(d => d.tanggal === todayStr);
+  else if (currentFilter === 'minggu-ini') data = data.filter(d => d.tanggal >= weekAgo);
+
+  data = data.slice().reverse();
+  const el = document.getElementById('tx-all');
+  if (data.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>Tidak ada transaksi ditemukan</p></div>';
+  } else {
+    el.innerHTML = data.map(t => txItemHTML(t)).join('');
+  }
+}
+
+function tambahHutang() {
+  const nama = document.getElementById('h-nama').value.trim();
+  const total = parseFloat(document.getElementById('h-total').value);
+  const cicilan = parseFloat(document.getElementById('h-cicilan').value);
+  const bunga = parseFloat(document.getElementById('h-bunga').value);
+  if (!nama || !total || !cicilan) { showNotif('Isi semua field hutang!', 'error'); return; }
+  const list = getHutang();
+  list.push({ id: Date.now(), nama, total, cicilan, bunga: bunga || 0, dibayar: 0 });
+  list.sort((a, b) => b.bunga - a.bunga);
+  saveHutang(list);
+  document.getElementById('h-nama').value = '';
+  document.getElementById('h-total').value = '';
+  document.getElementById('h-cicilan').value = '';
+  document.getElementById('h-bunga').value = '';
+  showNotif('Hutang ditambahkan!', 'success');
+  renderHutang();
+}
+
+function renderHutang() {
+  const list = getHutang();
+  const el = document.getElementById('hutang-list');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🎉</div><p>Belum ada hutang tercatat — atau sudah lunas semua!</p></div>';
+    return;
+  }
+  el.innerHTML = list.map((h, i) => {
+    const sisa = h.total - h.dibayar;
+    const lunas = sisa <= 0;
+    const bulanSisa = lunas ? 0 : Math.ceil(sisa / h.cicilan);
+    const prioritas = i === 0 && !lunas ? '🔥 Prioritas Utama' : `#${i + 1}`;
+    return `<div class="hutang-item">
+      <div>
+        <div class="hutang-name">${h.nama}</div>
+        <div class="hutang-meta">Sisa: ${formatRp(sisa)} · Cicilan: ${formatRp(h.cicilan)}/bln · Bunga: ${h.bunga}%/thn</div>
+        <div class="hutang-meta" style="margin-top:4px;">${lunas ? '✅ LUNAS!' : `Estimasi lunas: ~${bulanSisa} bulan lagi`}</div>
+        <div style="margin-top:8px;">
+          <div class="progress-bar" style="height:6px;">
+            <div class="progress-fill ${lunas ? 'safe' : 'over'}" style="width:${Math.min((h.dibayar/h.total)*100,100).toFixed(0)}%"></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        <span class="hutang-badge ${lunas ? 'lunas' : ''}">${prioritas}</span>
+        ${!lunas ? `<button onclick="bayarCicilan(${h.id})" style="font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--green);background:var(--green-dim);color:var(--green);cursor:pointer;font-family:inherit;font-weight:600;">+ Bayar</button>` : ''}
+        <button onclick="hapusHutang(${h.id})" style="font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;">Hapus</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function bayarCicilan(id) {
+  const list = getHutang();
+  const h = list.find(x => x.id === id);
+  if (!h) return;
+  h.dibayar = Math.min(h.dibayar + h.cicilan, h.total);
+  saveHutang(list);
+  showNotif(`Cicilan ${h.nama} dicatat!`, 'success');
+  renderHutang();
+}
+
+function hapusHutang(id) {
+  saveHutang(getHutang().filter(h => h.id !== id));
+  renderHutang();
+  showNotif('Hutang dihapus', 'warning');
+}
+
+function showNotif(msg, type = 'success') {
+  const wrap = document.getElementById('notif-wrap');
+  const el = document.createElement('div');
+  el.className = `notif ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// Init
+document.getElementById('inp-tanggal').value = new Date().toISOString().slice(0, 10);
+renderDashboard();
+</script>
+</body>
+</html>
